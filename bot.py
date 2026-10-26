@@ -621,7 +621,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 # Lightweight HTTP Health Check Server (For Render / Cloud Hosting)
 # ---------------------------------------------------------------------------
 class HealthCheckHandler(BaseHTTPRequestHandler):
-    """Responds to GET requests so Render/UptimeRobot know the service is alive."""
+    """Responds to GET and HEAD requests so Render/UptimeRobot know the service is alive."""
 
     def do_GET(self) -> None:
         self.send_response(200)
@@ -630,21 +630,27 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         response_body = json.dumps({"status": "ok", "bot": "running"}).encode("utf-8")
         self.wfile.write(response_body)
 
+    def do_HEAD(self) -> None:
+        # UptimeRobot sends HEAD requests by default to verify uptime
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+
     def log_message(self, format: str, *args) -> None:
         # Suppress noisy healthcheck logs
         pass
 
 
-def start_health_check_server(port: int = 8080) -> None:
+def start_health_check_server(port: int = 10000) -> None:
     """
     Runs a lightweight HTTP server in a background daemon thread.
-    Required for Render.com Web Services to detect an open port.
+    Required for Render.com Web Services to detect an open port and stay healthy.
     """
     try:
         server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        logger.info(f"Health check HTTP server listening on port {port}")
+        logger.info(f"Health check HTTP server listening on 0.0.0.0:{port}")
     except Exception as e:
         logger.warning(f"Could not start health check server on port {port}: {e}")
 
@@ -656,13 +662,12 @@ def main() -> None:
     """
     Initializes and starts the Telegram bot using long-polling.
     """
-    # Start health check server if PORT is set (Render, Heroku, etc.)
-    port_str = os.getenv("PORT", "").strip()
-    if port_str:
-        try:
-            start_health_check_server(int(port_str))
-        except ValueError:
-            start_health_check_server(8080)
+    # Always start health check server on Render PORT (default 10000)
+    try:
+        web_port = int(os.getenv("PORT", "10000"))
+    except ValueError:
+        web_port = 10000
+    start_health_check_server(web_port)
 
     if not TELEGRAM_BOT_TOKEN:
         logger.error(
