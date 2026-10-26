@@ -55,8 +55,12 @@ load_dotenv(override=True)
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest").strip()
 EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "ar-AE-HamdanNeural").strip()
+
+# Automatically upgrade deprecated model strings to active models
+if GEMINI_MODEL in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash-lite"]:
+    GEMINI_MODEL = "gemini-flash-lite-latest"
 
 # Keep GOOGLE_API_KEY in sync with GEMINI_API_KEY
 if GEMINI_API_KEY:
@@ -194,7 +198,7 @@ async def interpret_audio_with_gemini(
     )
 
     models_to_try = [model_name]
-    for fallback in ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]:
+    for fallback in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"]:
         if fallback not in models_to_try:
             models_to_try.append(fallback)
 
@@ -243,7 +247,7 @@ async def translate_text_with_gemini(
     Translates user text input (Urdu/Hindi to Gulf Arabic or vice-versa).
     """
     models_to_try = [model_name]
-    for fallback in ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"]:
+    for fallback in ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"]:
         if fallback not in models_to_try:
             models_to_try.append(fallback)
 
