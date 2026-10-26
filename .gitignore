@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+*.ogg
+*.oga
+*.mp3
+*.wav
+.vscode/
+.idea/
