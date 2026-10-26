@@ -119,19 +119,22 @@ class TestGeminiInterpretationMock(unittest.IsolatedAsyncioTestCase):
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_response.text = json.dumps({
+                "detected_language": "urdu_hindi",
                 "transcription": "کل موسم کیسا ہوگا؟",
-                "arabic_translation": "كيف الجو باكر؟"
+                "translation": "كيف الجو باكر؟",
+                "arabic_text": "كيف الجو باكر؟"
             })
             mock_client.models.generate_content.return_value = mock_response
 
-            transcription, translation = await interpret_audio_with_gemini(
+            result = await interpret_audio_with_gemini(
                 audio_path=audio_path,
                 client=mock_client,
                 model_name="gemini-2.5-flash",
             )
 
-            self.assertEqual(transcription, "کل موسم کیسا ہوگا؟")
-            self.assertEqual(translation, "كيف الجو باكر؟")
+            self.assertEqual(result["transcription"], "کل موسم کیسا ہوگا؟")
+            self.assertEqual(result["translation"], "كيف الجو باكر؟")
+            self.assertEqual(result["detected_language"], "urdu_hindi")
 
             # Verify client was called with correct parameters
             mock_client.models.generate_content.assert_called_once()
@@ -139,6 +142,35 @@ class TestGeminiInterpretationMock(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(call_kwargs["model"], "gemini-2.5-flash")
             self.assertEqual(call_kwargs["config"].system_instruction, SYSTEM_PROMPT)
             self.assertEqual(call_kwargs["config"].response_mime_type, "application/json")
+        finally:
+            cleanup_files(audio_path)
+
+    async def test_interpret_arabic_whatsapp_audio(self):
+        """Test incoming WhatsApp Arabic voice note detection."""
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".opus") as dummy_audio:
+            dummy_audio.write(b"dummy whatsapp opus audio bytes")
+            audio_path = dummy_audio.name
+
+        try:
+            mock_client = MagicMock()
+            mock_response = MagicMock()
+            mock_response.text = json.dumps({
+                "detected_language": "arabic",
+                "transcription": "وينك يا ريال؟ تأخرت علينا",
+                "translation": "آپ کہاں ہیں بھائی؟ آپ کو دیر ہو گئی ہے",
+                "arabic_text": "وينك يا ريال؟ تأخرت علينا"
+            })
+            mock_client.models.generate_content.return_value = mock_response
+
+            result = await interpret_audio_with_gemini(
+                audio_path=audio_path,
+                client=mock_client,
+                model_name="gemini-2.5-flash",
+            )
+
+            self.assertEqual(result["detected_language"], "arabic")
+            self.assertEqual(result["transcription"], "وينك يا ريال؟ تأخرت علينا")
+            self.assertEqual(result["translation"], "آپ کہاں ہیں بھائی؟ آپ کو دیر ہو گئی ہے")
         finally:
             cleanup_files(audio_path)
 
